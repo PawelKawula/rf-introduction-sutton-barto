@@ -6,7 +6,6 @@ from numba import njit
 from tqdm import trange
 import seaborn as sns
 import matplotlib.pyplot as plt
-from copy import copy
 
 DISTS = []
 for i in range(3):
@@ -21,12 +20,12 @@ GAMMA, THETA = 0.9, 0.1
 MAX_CARS, MAX_MOVE, MAX_FREE_PARKING = 20, 5, 10
 
 vs = zeros((MAX_CARS+1,MAX_CARS+1))
-pi = zeros((MAX_CARS+1, MAX_CARS+1, 2), dtype=int)
+pi = vs.copy().astype(int)
 
 
 def save_policy():
     save_policy.counter += 1
-    ax = sns.heatmap(pi[:,:,0] + pi[:,:,1], linewidth=0.5)
+    ax = sns.heatmap(pi, linewidth=0.5)
     ax.invert_yaxis()
     plt.savefig('policy_variant'+str(save_policy.counter)+'.svg')
     plt.close()
@@ -43,17 +42,18 @@ save_value.counter = 0
 
 
 @njit
-def apply_action(state: array, action: array) -> float:
-    return array([max(0, min(MAX_CARS, state[0] - action[0] - action[1])), max(0, min(MAX_CARS, state[1] + action[0] + action[1]))])
+def apply_action(state: array, action: int) -> float:
+    return array([max(0, min(MAX_CARS, state[0] - action)), max(0, min(MAX_CARS, state[1] + action))])
 
 @njit
 def get_new_state_indexes(state: array, action0: int, action1: int) -> float:
     return [max(0, min(MAX_CARS, state[0] + action0)), max(0, min(MAX_CARS, state[1] + action1))]
 
 @njit
-def get_v(vs: array, state: array, action: array) -> float:
+def get_v(vs: array, state: array, action: int) -> float:
 
-    v = abs(action[0]) * MOVE_REWARD + (int(MAX_FREE_PARKING < state[0]) + int(MAX_FREE_PARKING < state[1])) * PARKING_REWARD
+    parking_cost = (int(state[0] > MAX_FREE_PARKING) + int(state[0] > MAX_FREE_PARKING)) * PARKING_REWARD
+    v = abs(action - int(action > 0)) * MOVE_REWARD + parking_cost
     state = apply_action(state, action)
 
     for i0, req_0 in enumerate(LAMBDA_REQ_0):
@@ -72,12 +72,11 @@ def get_pol(vs: array, state: array):
     l_action = min(MAX_MOVE, state[0])
     f_action = -min(MAX_MOVE, state[1]) 
 
-    best, best_val = [f_action, 0], get_v(vs, [state[0], state[1]], [f_action, 0])
+    best, best_val = f_action, get_v(vs, [state[0], state[1]], f_action)
     for i in range(min(0, f_action + 1), l_action + 1):
-        for j in range(2):
-            val = get_v(vs, [state[0], state[1]], [i, j])
-            if best_val < val:
-                best, best_val = [i, j], val
+        val = get_v(vs, [state[0], state[1]], i)
+        if best_val < val:
+            best, best_val = i, val
     return best
 
 
@@ -91,8 +90,7 @@ def main():
                     for j in range(vs.shape[1]):
                         t.set_description(
                             "policy evaluation sweep no.%i, state: [%2i, %2i]" % (save_value.counter+1, i, j))
-                        v = vs[i,j]
-                        a = pi[i,j]
+                        v, a = vs[i,j], pi[i,j]
                         vs[i, j] = get_v(vs, array([i,j]), a)
                         delta = max(delta, abs(v - vs[i,j]))
                 print(f"delta: {delta}, THETA: {THETA}")
@@ -106,9 +104,9 @@ def main():
                 for j in range(vs.shape[1]):
                     t.set_description(
                         "policy improvement sweep no.%i, state: [%2i, %2i]" % (save_policy.counter+1, i, j))
-                    old_action = copy(pi[i,j])
+                    old_action = pi[i,j]
                     pi[i,j] = get_pol(vs, array([i,j]))
-                    if old_action[0] != pi[i,j,0] or old_action[1] != pi[i,j,1]:
+                    if old_action != pi[i,j]:
                         policy_stable = False
         save_value()
         save_policy()
