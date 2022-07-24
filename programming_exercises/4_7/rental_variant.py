@@ -6,6 +6,7 @@ from numba import njit
 from tqdm import trange
 import seaborn as sns
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 DISTS = []
 for i in range(3):
@@ -25,7 +26,7 @@ pi = vs.copy().astype(int)
 
 def save_policy():
     save_policy.counter += 1
-    ax = sns.heatmap(pi, linewidth=0.5)
+    ax = sns.heatmap(pi, linewidth=0.5, annot=True, cmap=ListedColormap(['white']))
     ax.invert_yaxis()
     plt.savefig('policy_variant'+str(save_policy.counter)+'.svg')
     plt.close()

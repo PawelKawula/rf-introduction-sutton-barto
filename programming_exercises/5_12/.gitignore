@@ -1,0 +1,5 @@
+0_*/
+*.svg
+*.ipynb
+.idea/
+*.npy
