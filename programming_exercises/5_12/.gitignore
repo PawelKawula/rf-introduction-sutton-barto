@@ -3,3 +3,4 @@
 *.ipynb
 .idea/
 *.npy
+__pycache__/

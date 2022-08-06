@@ -15,10 +15,10 @@ from tqdm import trange, tqdm
 
 import racetracks
 
-MAKE_PLOTS, MAKE_ARRAYS, MAKE_PREFS, PRINT_RESULTS = True, True, True, True
+MAKE_PLOTS, MAKE_ARRAYS, MAKE_PREFS, PRINT_RESULTS = False, False, False, True
 
 GAMMA, EPS, PROB_HALT = 0.9, 0.3, 0.1
-MAX_VELOCITY, N_EPISODES, BASE_INCREMENT = 5, int(1e6), int(1)
+MAX_VELOCITY, N_EPISODES, BASE_INCREMENT = 5, int(1e2), int(1)
 #print(BASE_INCREMENT)
 
 STATE_SHAPE = (racetracks.RACETRACK.shape + (MAX_VELOCITY + 1, MAX_VELOCITY + 1))
@@ -112,10 +112,11 @@ def policy_iteration(qs, ns, pi, episode, desc=False):
             pi[i[0], i[1], i[2], i[3], 0] = y - 1
             pi[i[0], i[1], i[2], i[3], 1] = x - 1
         elif desc: print(t, "is in the past")
+    return ep_len
 
 
 def learn(start_coord, desc=False):
-    policy_iteration(qs, ns, pi, generate_episode(pi, start_coord, True, desc), desc)
+    return policy_iteration(qs, ns, pi, generate_episode(pi, start_coord, True, desc), desc)
 
 
 def make_plots():
@@ -155,8 +156,13 @@ def main():
     if PRINT_RESULTS:
         for i, e in enumerate(tqdm(racetracks.ON_TRACK)):
             test[i,0] = len(generate_episode(pi, e))
-    for _ in trange(N_EPISODES):
-       learn(rng.choice(racetracks.ON_START), False)
+    bar = trange(N_EPISODES)
+    ep_lens, n = 0, 1
+    for i in bar:
+        length = learn(rng.choice(racetracks.ON_START), False)
+        ep_lens += 1 / n * (length - ep_lens)
+        bar.set_description("Mean ep_len: " + str(round(ep_lens)))
+        n += 1
     if PRINT_RESULTS:
         for i, e in enumerate(racetracks.ON_TRACK):
             test[i,1] = len(generate_episode(pi, e))

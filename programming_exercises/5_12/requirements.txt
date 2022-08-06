@@ -1,0 +1,7 @@
+gym==0.21.0
+matplotlib==3.4.3
+numba==0.56.0
+numpy==1.21.2
+seaborn==0.11.2
+stable_baselines3==1.6.0
+tqdm==4.62.2
